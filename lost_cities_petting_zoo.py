@@ -371,6 +371,9 @@ env = env()
 from pettingzoo.test import api_test
 api_test(env, num_cycles=1000, verbose_progress=False)
 #%%
+from pettingzoo.utils.conversions import aec_to_parallel
+
+penv = aec_to_parallel(env)
 
 env = ss.pettingzoo_env_to_vec_env_v1(env)
 

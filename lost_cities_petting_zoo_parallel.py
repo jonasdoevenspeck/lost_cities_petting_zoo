@@ -18,6 +18,8 @@ import supersuit as ss
 
 from classes import Hand, Expedition, Pile
 #%%
+printt = False
+
 def env():
     env = raw_env()
     #env = wrappers.AssertOutOfBoundsWrapper(env)
@@ -49,32 +51,12 @@ class raw_env(AECEnv, EzPickle):
 
 
         self.current_player = 0
-        total_cards = 60
-        start_cards = 8
+        self.total_cards = 60
+        self.start_cards = 8
 
         self.colors = ['green','blue','yellow','red','white']
-        cards = [2,3,4,5,6,7,8,9,10,'b','b','b']
+        self.card_vals = [2,3,4,5,6,7,8,9,10,'b','b','b']
 
-        self.current_step = 0
-        self.card_deck = []
-        self.discard_deck = []
-        self.expeditions = []
-        id = 1
-        for color in self.colors:
-            for card in cards:
-                self.card_deck.append({'id': id,'color': color, 'val': card})
-                id +=1
-
-        self.starting_deck = self.card_deck.copy()
-
-        random.shuffle(self.card_deck)
-
-        self.hands = [Hand(),Hand()]
-        self.exps = [Expedition(),Expedition()]
-        self.centre_pile = Pile()
-        for player_idx in range(2):
-            for card_idx in range(start_cards):
-                self.hands[player_idx].add_card(self.card_deck.pop())
 
         #self.observation = self._next_observation(0)
         
@@ -86,7 +68,7 @@ class raw_env(AECEnv, EzPickle):
         self.done = False
         action_id = 0
         self.action_vec_dict = {}
-
+        self.reset()
         for play_action in play_actions:
             for card_id_played in card_ids_played:
                 for draw_action in draw_actions:
@@ -194,6 +176,27 @@ class raw_env(AECEnv, EzPickle):
 
         #self._agent_selector = agent_selector(self.agents)
         #self.agent_selection = self._agent_selector.next()
+        self.current_step = 0
+        self.card_deck = []
+        self.discard_deck = []
+        #self.expeditions = []
+        id = 1
+        for color in self.colors:
+            for card in self.card_vals:
+                self.card_deck.append({'id': id,'color': color, 'val': card})
+                id +=1
+
+        self.starting_deck = self.card_deck.copy()
+
+        random.shuffle(self.card_deck)
+
+        self.hands = [Hand(),Hand()]
+        self.exps = [Expedition(),Expedition()]
+        self.centre_pile = Pile()
+        for player_idx in range(2):
+            for card_idx in range(self.start_cards):
+                self.hands[player_idx].add_card(self.card_deck.pop())
+
 
         self.agents = self.possible_agents[:]
 
@@ -249,7 +252,21 @@ class raw_env(AECEnv, EzPickle):
             else:
                 draw_action_check2 = False           
 
+        #5: did we not just the discard the card?
+
             draw_action_check = draw_action_check1 and draw_action_check2
+
+            if play_action == 'discard' and draw_action == 'draw_discard':
+                selected_card = self.hands[self.current_player].cards[card_id_played]
+                discard_color = selected_card['color']
+                draw_color = self.colors[draw_pile_id]
+                if draw_color != discard_color:
+                    draw_action_check3 = True
+                else:
+                    draw_action_check3 = True
+
+
+                draw_action_check = draw_action_check1 and draw_action_check2 and draw_action_check3
 
         elif draw_action == 'draw_blind':
                 draw_action_check = True      
@@ -263,7 +280,7 @@ class raw_env(AECEnv, EzPickle):
 
 
     def _take_action(self,action):
-
+        #print(action)
         play_actions = ['build','discard']
         draw_actions = ['draw_blind','draw_discard']
 
@@ -291,6 +308,7 @@ class raw_env(AECEnv, EzPickle):
 
 
         if play_action == 'build':
+            #print('building')
             #print('build')
             #card_id_played = random.randint(0,len(possible_builds)-1)
             #played_card = self.get_card_by_id(card_id_played)
@@ -329,45 +347,52 @@ class raw_env(AECEnv, EzPickle):
 
     def step(self, action):
         # Execute one time step within the environment
-        #print('step done 1', self.dones)
-        if len(self.card_deck)<1:
-            self.dones['player_0'] = True
-            self.dones['player_1'] = True
+        if printt:
+            print('step done 1', self.dones)
+            print('action', action)
+            print('agent',self.agent_selection)
+            print('nr cards', len(self.card_deck))
+        # if len(self.card_deck)<1 or self.dones[self.agent_selection]:
+        #     self.dones['player_0'] = True
+        #     self.dones['player_1'] = True
 
-            action = None
-            return self._was_done_step(action)
+        #     #action = None
+        #     return self._was_done_step(action)
 
-        #if self.dones[self.agent_selection]:
+        if self.dones[self.agent_selection]:
         #    print('step done 2', self.dones[self.agent_selection])
         #    self.card_out = True
-        #    return self._was_done_step(action)
+            action = None
+            return self._was_done_step(action)
 
         agent = self.agent_selection
         self._cumulative_rewards[agent] = 0
 
         valid = self.check_if_action_valid(action)
-        if len(self.card_deck)<2:
+        if len(self.card_deck)<1:
             self.done = True
         if valid:
             #print('a')
             self._take_action(action)
         else:
+            #if printt:
+            print('invalid')
             next_reward = -1
 
         # collect reward if it is the last agent to act
         if self._agent_selector.is_last():
+            if printt:
+                print('is last')
             # rewards for all agents are placed in the .rewards dictionary
             if valid:
                 self.rewards[self.agents[0]] = self.exps[0].get_total_score()
                 self.rewards[self.agents[1]] = self.exps[1].get_total_score()
             else:
-                self.rewards[self.agents[0]] = -1
-                self.rewards[self.agents[1]] = -1
+                self.rewards[self.agents[0]] = -10
+                self.rewards[self.agents[1]] = -10
             self.num_moves += 1
             # The dones dictionary must be updated for all players.
-            #self.dones = {agent: len(self.card_deck)<2 for agent in self.agents}
             
-
             # observe the current state
             #for i_idx, i in enumerate(self.agents):
             #    self.observations[i] = self._next_observation(i_idx)
@@ -376,7 +401,7 @@ class raw_env(AECEnv, EzPickle):
             #self.state[self.agents[1 - self.agent_name_mapping[agent]]] = self._next_observation(i)
             # no rewards are allocated until both players give an action
             self._clear_rewards()
-
+        self.dones = {agent: len(self.card_deck)<2 for agent in self.agents}
         if self._agent_selector.is_last():
             self.dones = dict(zip(self.agents, [self.done for _ in self.agents]))
 
@@ -390,6 +415,7 @@ class raw_env(AECEnv, EzPickle):
 from pettingzoo.utils.conversions import aec_to_parallel
 
 env = env()
+#env = wrappers.flatten_observation(env)
 penv = aec_to_parallel(env)
 penv = ss.pettingzoo_env_to_vec_env_v1(penv)
 #%%
@@ -397,16 +423,31 @@ penv = ss.concat_vec_envs_v1(penv, 1, num_cpus=1, base_class='stable_baselines3'
 
 
 #%%
-model = PPO(MlpPolicy, penv, verbose=3, gamma=0.95, n_steps=256, ent_coef=0.0905168, learning_rate=0.00062211, vf_coef=0.042202, max_grad_norm=0.9, gae_lambda=0.99, n_epochs=5, clip_range=0.3, batch_size=256)
+model = PPO(MlpPolicy, penv, verbose=1,n_steps=200,batch_size=100,n_epochs=10)
 
 #%%
-model.learn(total_timesteps=200000)
-model.save('policy')
+model.learn(total_timesteps=1000000)
+model.save('policy_reward_min_10_steps')
 
 
 
 #%%
-model = PPO.load('policy')
+
+play_actions = ['build','discard']
+card_ids_played = list(range(8))
+draw_actions = ['draw_blind','draw_discard']
+draw_pile_ids = list(range(5))
+action_id = 0
+action_vec_dict = {}
+
+for play_action in play_actions:
+    for card_id_played in card_ids_played:
+        for draw_action in draw_actions:
+            for draw_pile_id in draw_pile_ids:
+                action_vec_dict[action_id] = {'play_action':play_action,'card_id_played':card_id_played,'draw_action': draw_action, 'draw_pile_id':draw_pile_id}
+                action_id += 1
+
+model = PPO.load('policy_reward_min_10_steps')
 
 env.reset()
 steps = 0
@@ -414,13 +455,23 @@ for agent in env.agent_iter():
     steps +=1
     obs, reward, done, info = env.last()
     act = model.predict(obs, deterministic=True)[0] if not done else None
-    print('action', act)
+    play_action = action_vec_dict[act]['play_action']
+    card_id_played = action_vec_dict[act]['card_id_played']
+    draw_action = action_vec_dict[act]['draw_action']
+    draw_pile_id = action_vec_dict[act]['draw_pile_id']
+    print('action id', act)
+    print('play action', play_action)
+    print('card_id_played', card_id_played)
+    print('draw_action', draw_action)
+    print('draw_pile_id', draw_pile_id)
+    print('------------------------------------')
     print('------------------------------------')
     env.step(act)
-    #env.render()
+    env.render()
     if steps > 100:
         break
 
+#always 
 
 
 

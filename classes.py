@@ -73,15 +73,19 @@ class Expedition:
 
 
     def get_total_score(self):
+        start_bonus = 0
         total_score = 0
         for color in self.expeditions.keys():
-            col_score = 0
-            multiplier = 1+self.expeditions[color].count('b')
-            for card in self.expeditions[color]:
-                val = card['val']
-                if isinstance(val, int):
-                    col_score += val
-            col_score = (col_score-20)*multiplier
+            if len(self.expeditions[color])>0:
+                col_score = 0
+                multiplier = 1+self.expeditions[color].count('b')
+                for card in self.expeditions[color]:
+                    val = card['val']
+                    if isinstance(val, int):
+                        col_score += val
+                col_score = (col_score-start_bonus)*multiplier
+            else:
+                col_score = 0
             total_score += col_score
         return total_score
 

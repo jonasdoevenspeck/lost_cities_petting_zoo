@@ -310,7 +310,7 @@ for step_nr in range(200):
 #%%
 
 
-env = gym.make('LostCities-v0').unwrapped
+#env = gym.make('LostCities-v0').unwrapped
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -318,7 +318,7 @@ if is_ipython:
     from IPython import display
 
 plt.ion()
-
+#%%
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # %%
@@ -385,9 +385,9 @@ TARGET_UPDATE = 10
 
 #%%
 
-n_actions = 420
+n_actions = 160
 # Get number of actions from gym action space
-n_actions = env.action_space.n
+#n_actions = env.action_space.n
 policy_net = DQN(16, 60, n_actions).to(device)
 target_net = DQN(16, 60, n_actions).to(device)
 target_net.load_state_dict(policy_net.state_dict())
